@@ -1,0 +1,88 @@
+{% extends "chats/chats.html" %}
+
+{% block content %}
+  <div class="d-flex flex-column p-3">
+    <label class="h4">Участники чата «{{ room.name }}»</label>
+    <div id="user-profiles"></div>
+  </div>
+  <script>
+    window.addEventListener("load", () => {
+      fetch('http://127.0.0.1:8000/api/chat-rooms/{{ room.id }}')
+        .then(response => response.json())
+        .then(apiData => {
+            let userProfiles = '';
+            apiData.members.forEach(item => {
+                if (item.name !== "{{ user_profile_name }}") {
+                    userProfiles += `<a class="member-link" data-member-id="${item.id}" data-member-name="${item.name}" href="">${item.name}</a><br>`
+                }
+            });
+            const userProfilesElement = document.getElementById('user-profiles');
+            userProfilesElement.innerHTML = userProfiles;
+
+            userProfilesElement.querySelectorAll('.member-link').forEach(link => {
+              link.addEventListener('click', (event) => {
+                event.preventDefault();
+
+                let memberId = event.target.dataset.memberId;
+
+                fetch('../../api/current_user_chats/', {
+                  method: 'GET',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                  },
+                })
+                  .then(response => response.json())
+                  .then(existingChats => {
+                    let chatWithClickedUser = existingChats.find(chat => 
+                      chat.members.some(member => Number(member.id) === Number(memberId)) && 
+                      chat.is_group === false
+                    );
+                    console.log(existingChats)
+
+                    if (chatWithClickedUser) {
+                      window.location.pathname = '/' + chatWithClickedUser.id + '/';  
+                    } else {
+                      let data = {
+                        name: event.target.dataset.memberName,
+                        members: [
+                            {
+                                id: memberId,
+                                name: event.target.dataset.memberName
+                            },
+                            {
+                                id: "{{ user_profile_id }}",
+                                name: "{{ user_profile_name }}"
+                            }
+                        ],
+                        is_group: false,
+                      };
+
+                      fetch('/api/chat-rooms/', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify(data),
+                      })
+                        .then(response => response.json())
+                        .then(data => {
+                          console.log(data);
+                          window.location.pathname = '/' + data.id + '/';
+                        })
+                        .catch((error) => {
+                          console.error('Error:', error);
+                        });
+                    }
+                  })
+                  .catch((error) => {
+                    console.error('Error:', error);
+                  })
+
+              });
+            });
+        })
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "chats/chats.html" %}
+  
+{% block content %}
+  <form class="d-flex flex-column w-100" id="message-form">
+    {% csrf_token %}
+    <div class="controls-container">
+      <label for="textarea" class="h4">{{ room_name }}</label>
+      {% if room_is_group == True %}
+      <div class="d-flex gap-3">
+        <a href="../chatroom-edit/{{ room_id }}">Редактировать</a>
+        <a href="../chatroom-members/{{ room_id }}">Участники</a>
+      </div>
+      {% endif %}
+      {% if room_is_group == False %}
+      <div class="d-flex gap-3">
+        <a id="chat-delete" href="">Удалить чат</a>
+      </div>
+      {% endif %}
+    </div>
+    <textarea class="textarea messages form-control" id="chat-text" disabled></textarea>
+    <div class="controls-container">
+      <input class="form-control" id="input" type="text">
+      <input class="btn btn-primary" type="submit" value="Отправить">
+    </div>
+  </form>
+  
+  {{ room_id|json_script:"room-id" }}
+  {{ user_profile_id|json_script:"user-id" }}
+  {{ user_profile_name|json_script:"user-name" }}
+  
+  <script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+  
+    const userId = JSON.parse(document.getElementById('user-id').textContent);
+    const userName = JSON.parse(document.getElementById('user-name').textContent);
+    const roomId = JSON.parse(document.getElementById('room-id').textContent);
+    const messageForm = document.querySelector('#message-form');
+    const messageInputDOM = document.querySelector('#input');
+    
+    messageForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const message = messageInputDOM.value;
+        chatSocket.send(JSON.stringify({
+            'message': message,
+            'user_name': userName,
+            'user_id': userId
+        }));
+        messageInputDOM.value = '';
+    });
+
+    const chatSocket = new WebSocket(
+        'ws://' +
+        window.location.host +
+        '/ws/chats/' +
+        roomId +
+        '/'
+    );
+    
+    chatSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        console.log(data)
+        document.querySelector('#chat-text').value += (data.user_name + ': ' + data.message + '\n')
+        var objDiv = document.querySelector("#chat-text");
+        if (objDiv) {
+            objDiv.scrollTop = objDiv.scrollHeight;
+        }}
+    
+    document.getElementById('chat-delete').addEventListener('click', function () {
+        fetch('/api/chat-rooms/' + roomId +'/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            credentials: 'same-origin'
+        })
+            .then(function (response) {
+                if (response.ok) {
+                    alert('Чат {{ room.name }} удалён');
+                    window.location.href = '/';
+                } else {
+                    alert('Ошибка при удалении чата {{ room.name }}');
+                }
+            });
+    });
+  </script>
+{% endblock %}

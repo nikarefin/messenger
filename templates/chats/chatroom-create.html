@@ -1,0 +1,77 @@
+{% extends "chats/chats.html" %}
+
+{% block content %}
+  <form id="chatroom-form" class="d-flex flex-column w-100" method="post">
+    {% csrf_token %}
+    <div class="controls-container">
+      <label class="h4">Новая группа</label>
+    </div>
+    <div class="p-3">
+        <label class="fw-semibold">Название группы</label>
+        <input id="room-name" class="form-control" type="text" name="name" placeholder="Новая группа" required>
+      </div>
+    <div class="p-3 flex-grow-1">
+      <label class="fw-semibold">Участники</label>
+      <div id="user-profiles"></div>
+    </div>
+    <div class="controls-container">
+      <input id="room-submit" class="btn btn-primary" type="submit" value="Создать чат">
+    </div>
+  </form>
+  <script>
+    window.addEventListener("load", () => {
+        fetch('http://127.0.0.1:8000/api/profiles')
+            .then((response) => {
+                return response.json()
+            })
+            .then((apiData) => {
+                let userProfiles = ''
+                apiData.forEach(item => {
+                    delete item.user_pic;
+                    if (item.name === "{{ user_profile_name }}") {
+                        userProfiles += `<input class="form-check-input" type="checkbox" value='${JSON.stringify(item)}' id="flexCheckDefault${item.name}" checked hidden>
+                                         <label class="form-check-label" for="flexCheckDefault${item.name}" hidden>
+                                           ${item.name}
+                                         </label>`
+                    } else {
+                        userProfiles += `<input class="form-check-input" type="checkbox" value='${JSON.stringify(item)}' id="flexCheckDefault${item.name}">
+                                         <label class="form-check-label" for="flexCheckDefault${item.name}">
+                                           ${item.name}
+                                         </label><br>`
+                    }
+                });
+                document.getElementById('user-profiles').innerHTML = userProfiles;
+            })
+    });
+
+    document.getElementById("chatroom-form").addEventListener("submit", function(event){
+        event.preventDefault()
+
+        let name = document.querySelector("input[name='name']").value;
+        let profilesChecked = document.querySelectorAll("input[type='checkbox']:checked");
+        let members = Array.from(profilesChecked).map(input => JSON.parse(input.value));
+        let data = {
+          name: name,
+          members: members,
+          is_group: true
+        }
+
+        fetch('/api/chat-rooms/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify(data)
+        })
+          .then(response => response.json())
+          .then(data => {
+              console.log(data);
+              window.location.pathname = '/' + data.id + '/';
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+          });
+    });  
+  </script>
+{% endblock %}

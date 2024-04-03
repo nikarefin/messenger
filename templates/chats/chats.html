@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title></title>
+  {% load static %}
+  <link href="{% static "css/bootstrap.css" %}" rel="stylesheet"/>
+  <link href="{% static "css/custom.css" %}" rel="stylesheet"/>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+</head>
+<body>
+  <div class="messenger-body">
+    <div class="d-flex justify-content-between p-3 border-bottom align-items-center">
+      <h4 class="text-primary"><a href="{% url 'chats' %}">Месенджер</a></h4>
+      <div class="d-flex gap-3 align-items-center">
+        <div class="d-flex gap-2 align-items-center">
+          <img id="user_pic" class="user-pic" src="" alt="">
+          <a id="profile-name" href="{% url 'profile_edit' %}"></a>
+        </div>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          {{ form.as_p }}
+          <button class="btn btn-outline-secondary" type="submit">Выйти</button>
+        </form>
+      </div>
+    </div>
+    <div class="d-flex flex-grow-1 w-100" style="height: 647px">
+      <div class="d-flex w-25 flex-column border-end">
+        <div id="chatRooms" class="d-flex flex-column flex-grow-1 overflow-auto">
+        </div>
+        <div class="controls-container">
+          <div class="dropdown w-100">
+            <button class="btn btn-dark w-100 dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Новый чат
+            </button>
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+              <a class="dropdown-item" href="{% url 'chat_create' %}">Обычный чат</a>
+              <a class="dropdown-item" href="{% url 'chatroom_create' %}">Групповой чат</a>
+            </div>
+          </div>
+        </div>
+    </div>
+  <div class="w-75 d-flex">
+    {% block content %}
+    {% endblock content %}
+  </div>
+  <script>
+    window.addEventListener("load", () => {
+        fetch('http://127.0.0.1:8000/api/chat-rooms')
+            .then((response) => {
+                return response.json()
+            })
+            .then((apiData) => {
+                let rooms = ''
+                apiData.forEach(item => {
+                    let room_id = "{{ room_id }}";
+                    let isActiveRoom = room_id && item.id.toString() === room_id;
+                    if (item.members.some(member => member.name === "{{ user_profile_name }}")) {
+                        if (item.is_group === false && item.name === "{{ user_profile_name }}") {
+                            item.members.forEach(member => {
+                                if (member.name !== "{{ user_profile_name }}") {
+                                    item.name = member.name;
+                                    item.chat_pic = member.user_pic;
+                                }
+                            })
+                        } else {
+                            if (item.is_group === false) {
+                                item.members.forEach(member => {
+                                    if (member.name !== "{{ user_profile_name }}") {
+                                        item.name = member.name;
+                                        item.chat_pic = member.user_pic;
+                                    }
+                                })
+                            }
+                        }
+                        rooms += `<a class="chat-card${isActiveRoom ? '-active' : ''}" id="chatCard" href="/${item.id}/">
+                                  <img class="user-pic chats" src="${item.chat_pic}">${item.name}
+                                  </a>`
+                    }
+                })
+                document.getElementById('chatRooms').innerHTML = rooms;
+            })
+    })
+    window.addEventListener("load", () => {
+        fetch('http://127.0.0.1:8000/api/profiles/{{ user_profile_id }}')
+            .then((response) => {
+                return response.json()
+            })
+            .then((apiData) => {
+                document.getElementById('user_pic').setAttribute('src', apiData['user_pic'])
+                document.getElementById('profile-name').innerText = `${apiData['name']}`
+            })
+        })
+  </script>
+  </div>
+  </div>
+</body>
+</html>

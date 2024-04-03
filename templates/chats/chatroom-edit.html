@@ -1,0 +1,115 @@
+{% extends "chats/chats.html" %}
+
+{% block content %}
+  <form id="chatroom-form" class="d-flex flex-column w-100" method="post">
+    {% csrf_token %}
+    <div class="controls-container">
+      <label class="h4">Редактирование чата «{{ room.name }}»</label>
+    </div>
+    <div id="user-profiles" class="p-3 flex-grow-1">
+      <label class="fw-semibold">Название</label>
+      <input id="room-name" class="form-control" type="text" name="name" placeholder="Название чата"  value="{{ room.name }}"><br>
+      <label class="fw-semibold">Участники</label><br>
+    </div>
+    <div class="controls-container">
+      <input id="room-submit" class="btn btn-primary" type="submit" value="Сохранить">
+      <input id="room-delete" class="btn btn-outline-danger" type="button" value="Удалить чат">
+    </div>
+  </form>
+  <script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    window.addEventListener("load", async () => {
+        const roomResponse = await fetch('http://127.0.0.1:8000/api/chat-rooms/{{ room.id }}')
+        const allUsersResponse = await fetch('http://127.0.0.1:8000/api/profiles/')
+        
+        const roomData = await roomResponse.json()
+        const allUsersData = await allUsersResponse.json()
+        
+        const roomUserNames = roomData['members'].map(member => member.name);
+     
+        let userProfiles = createCheckboxes(roomData['members'], true)
+
+        allUsersData.forEach(user => {
+            if (!roomUserNames.includes(user.name)) {
+                userProfiles += createCheckbox(user, false)
+            }
+        })
+      
+        document.getElementById('user-profiles').innerHTML += userProfiles
+    })
+    
+    function createCheckboxes(users, checked) {
+        return users.map(user => createCheckbox(user, checked)).join('')
+    }
+    
+    function createCheckbox(user, checked) {
+        const checkedAttribute = checked ? 'checked' : ''
+        return `<input class="form-check-input" type="checkbox" value='${JSON.stringify({name: user.name, id: user.id})}' id="flexCheckDefault${user.name}" ${checkedAttribute}>
+                <label class="form-check-label" for="flexCheckDefault${user.name}">
+                  ${user.name}
+                </label><br>`
+    }
+    
+    document.getElementById("chatroom-form").addEventListener("submit", function(event){
+        event.preventDefault()
+      
+        let name = document.querySelector("input[name='name']").value;
+        let profilesChecked = document.querySelectorAll("input[type='checkbox']:checked");
+        let profiles = Array.from(profilesChecked).map(input => JSON.parse(input.value));
+        let data = {
+            name: name,
+            members: profiles,
+            is_group: true
+        }
+      
+        fetch('/api/chat-rooms/{{ room.id }}/', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify(data)
+        })
+          .then(response => response.json())
+          .then(data => {
+              console.log(data);
+              window.location.pathname = '/' + data.id + '/';
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+          });
+        });
+
+    document.getElementById('room-delete').addEventListener('click', function() {
+        fetch('/api/chat-rooms/{{ room.id }}/', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken'),
+            },
+            credentials: 'same-origin'
+        })
+          .then(function(response) {
+              if (response.ok) {
+                alert('Чат {{ room.name }} удалён');
+                window.location.href = '/';
+              } else {
+                alert('Ошибка при удалении чата {{ room.name }}');
+          }
+        });
+    });
+  </script>
+{% endblock %}

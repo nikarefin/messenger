@@ -1,0 +1,5 @@
+.idea/
+messenger/__pycache__
+accounts/__pycache__
+chats/__pycache__
+chats/migrations/__pycache__

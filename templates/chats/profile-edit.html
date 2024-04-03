@@ -1,0 +1,64 @@
+{% extends "chats/chats.html" %}
+  
+{% block content %}
+  <form id="profile-edit" class="d-flex flex-column w-100" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="d-flex p-3 gap-3 align-items-center">
+      <img id="userpic" class="user-pic-large" src="" alt=""><br>
+      <input type="file" id="new_pic" name="new_pic" accept="image/*" onchange="displayImage(this)"><br>
+    </div>
+    <div class="p-3 flex-grow-1">
+      <input id="profile-name" class="form-control" name="profile-name" value="{{ user_profile_name }}"><br>
+    </div>
+    <div class="controls-container">
+      <input id="profile-edit-submit" class="btn btn-primary" type="submit" value="Сохранить">
+    </div>
+  </form>
+  <script>
+    function displayImage(inputElement) {
+        const image = inputElement.files[0];
+        const imageURL = URL.createObjectURL(image);
+        document.getElementById('userpic').src = imageURL;
+        document.getElementById('userpic').onload = () => URL.revokeObjectURL(imageURL);
+    }
+  
+    window.addEventListener("load", () => {
+        fetch('http://127.0.0.1:8000/api/profiles/{{ user_profile_id }}')
+            .then((response) => {
+                return response.json()
+            })
+            .then((apiData) => {
+                document.getElementById('userpic').setAttribute('src', apiData['user_pic'])
+            })
+    })
+  
+    document.getElementById("profile-edit").addEventListener("submit", (event) => {
+        event.preventDefault();
+        let profileName = document.querySelector("input[name='profile-name']").value;
+        let newPic = document.querySelector("input[name='new_pic']").files[0];
+        let formData = new FormData();
+        formData.append('name', profileName);
+        if (newPic) {
+            formData.append('user_pic', newPic);
+        }
+      
+        fetch('/api/profiles/{{ user_profile_id }}/', {
+          method: 'PUT',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: formData
+        })
+          .then(response => response.json())
+          .then(data => {
+              console.log(data);
+              document.getElementById("profile-name").value = data.name;
+              document.getElementById("user_pic").src = data.user_pic;
+              document.getElementById("profile-name").textContent = data.name;
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+          });
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "chats/chats.html" %}
+
+{% block content %}
+  <form id="chatroom-form" class="d-flex flex-column w-100" method="post">
+    {% csrf_token %}
+    <div class="controls-container">
+      <label class="h4">Новый чат</label>
+    </div>
+    <div class="p-3 flex-grow-1">
+      <label class="fw-semibold pb-3">С кем начать чат?</label>
+      <div id="user-profiles" class="d-flex flex-column gap-3"></div>
+    </div>
+    <div class="controls-container">
+      <input id="room-submit" class="btn btn-primary" type="submit" value="Создать чат">
+    </div>
+  </form>
+  <script>
+    window.addEventListener("load", () => {
+        let existingChatProfiles = [];
+        fetch('/api/current_user_chats/')
+            .then((response) => response.json())
+            .then((data) => {
+                existingChatProfiles = data.map(chat => chat.members.find(member => member.id !== {{ user_profile_id }}).id);
+            })
+            .then(() => {
+                fetch('http://127.0.0.1:8000/api/profiles')
+                    .then((response) => {
+                        return response.json()
+                    })
+                    .then((apiData) => {
+                        let userProfiles = ''
+                        let filteredData = apiData.filter(item => item.id !== {{ user_profile_id }} && !existingChatProfiles.includes(item.id));
+                        filteredData.forEach(item => {
+                            userProfiles += `<div class="align-items-center">
+                                               <input class="form-check-input" type="radio" name="profile" value="${item.id}" id="flexRadioDefault${item.id}">
+                                               <img class="user-pic chats" src="${item.user_pic}"> 
+                                               <label class="form-check-label" for="flexRadioDefault${item.id}">
+                                                 ${item.name}
+                                               </label><br>
+                                             </div>`
+                        });
+                        document.getElementById('user-profiles').innerHTML = userProfiles;
+                    })
+            })
+    })
+  
+    document.getElementById("chatroom-form").addEventListener("submit", function(event){
+        event.preventDefault()
+        
+        let profileCheckedId = document.querySelector("input[type='radio']:checked").value;
+        let profileCheckedName = document.querySelector(`label[for='flexRadioDefault${profileCheckedId}']`).innerText;
+        let members = [
+            {
+                'id': {{ user_profile_id }},
+                'name': '{{ user_profile_name }}'
+            },
+            {
+                'id': profileCheckedId,
+                'name': profileCheckedName
+            }
+        ]
+        let data = {
+            name: profileCheckedName,
+            members: members,
+            is_group: false
+        }
+
+        fetch('/api/chat-rooms/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json', 
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify(data)
+        })
+          .then(response => response.json())
+          .then(data => {
+              console.log(data);
+              window.location.pathname = '/' + data.id + '/';
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+          });
+    });
+  </script>
+{% endblock %}
