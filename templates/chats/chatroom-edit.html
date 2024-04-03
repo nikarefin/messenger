@@ -104,10 +104,10 @@
         })
           .then(function(response) {
               if (response.ok) {
-                alert('Чат {{ room.name }} удалён');
+                alert('Чат «{{ room.name }}» удалён');
                 window.location.href = '/';
               } else {
-                alert('Ошибка при удалении чата {{ room.name }}');
+                alert('Ошибка при удалении чата «{{ room.name }}»');
           }
         });
     });
